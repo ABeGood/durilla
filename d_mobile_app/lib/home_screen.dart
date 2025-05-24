@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
+import './word_gen_utils.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -9,52 +9,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // List of all English capital letters
-  final List<String> _englishLetters = [
-    'A',
-    'B',
-    'C',
-    'D',
-    'E',
-    'F',
-    'G',
-    'H',
-    'I',
-    'J',
-    'K',
-    'L',
-    'M',
-    'N',
-    'O',
-    'P',
-    'Q',
-    'R',
-    'S',
-    'T',
-    'U',
-    'V',
-    'W',
-    'X',
-    'Y',
-    'Z',
-  ];
-
   // Current letters to display (initially DURILLA)
   List<String> _currentLetters = ['D', 'U', 'R', 'I', 'L', 'L', 'A'];
-
-  // Available colors for letters
-  final List<Color> _availableColors = [
-    Color(0xFFFF9AD6), // Pink
-    Color(0xFF3A85FF), // Blue
-    Color(0xFF34C759), // Green
-    Color(0xFFFFCC00), // Yellow
-    Color(0xFF5FDFFF), // Light Blue
-    Color(0xFFBF3EFF), // Purple
-    Color(0xFFFF6B6B), // Red
-    Color(0xFF4ECDC4), // Teal
-    Color(0xFFFFE66D), // Light Yellow
-    Color(0xFF95E1D3), // Mint Green
-  ];
 
   // Current colors for each letter position
   List<Color> _currentColors = [
@@ -66,8 +22,6 @@ class _HomeScreenState extends State<HomeScreen> {
     Color(0xFF5FDFFF), // L - Light Blue
     Color(0xFFBF3EFF), // A - Purple
   ];
-
-  final Random _random = Random();
 
   // Text editing variables
   bool _isEditing = false;
@@ -86,67 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _textController.dispose();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  // Function to generate random letters and shuffle colors
-  void _generateRandomLetters() {
-    setState(() {
-      // Generate random letters
-      _currentLetters = List.generate(
-        7, // Keep the same number of letters as DURILLA
-        (index) => _englishLetters[_random.nextInt(_englishLetters.length)],
-      );
-
-      // Shuffle colors randomly
-      _currentColors = List.generate(
-        7,
-        (index) => _availableColors[_random.nextInt(_availableColors.length)],
-      );
-
-      // Update text controller
-      _textController.text = _currentLetters.join('');
-    });
-  }
-
-  // Function to generate random letters and shuffle colors
-  // Function to randomly change the first letters of each word
-  void _changeFirstLetters() {
-    setState(() {
-      // Join current letters into a string
-      String currentText = _currentLetters.join('');
-
-      // Split into words (by spaces)
-      List<String> words = currentText.split(' ');
-
-      // Change first letter of each word
-      List<String> newWords =
-          words.map((word) {
-            if (word.isNotEmpty) {
-              // Generate random first letter
-              String newFirstLetter =
-                  _englishLetters[_random.nextInt(_englishLetters.length)];
-              // Keep the rest of the word the same
-              String restOfWord = word.length > 1 ? word.substring(1) : '';
-              return newFirstLetter + restOfWord;
-            }
-            return word; // Return empty word as is
-          }).toList();
-
-      // Join words back together
-      String newText = newWords.join(' ');
-
-      // Convert back to letters list
-      _currentLetters = newText.split('');
-
-      // Shuffle colors randomly
-      _currentColors = List.generate(
-        _currentLetters.length,
-        (index) => _availableColors[_random.nextInt(_availableColors.length)],
-      );
-
-      // Update text controller
-      _textController.text = newText;
-    });
   }
 
   // Function to start editing
@@ -171,15 +64,21 @@ class _HomeScreenState extends State<HomeScreen> {
         // Convert text to letters list
         _currentLetters = newText.split('');
 
-        // Generate new colors for the new length
-        _currentColors = List.generate(
-          _currentLetters.length,
-          (index) => _availableColors[_random.nextInt(_availableColors.length)],
-        );
-
         // Update text controller
         _textController.text = _currentLetters.join('');
       }
+    });
+  }
+
+  // Function to finish editing
+  void _buttonPressedStart() {
+    setState(() {
+      _isEditing = false;
+
+      // Update text controller
+      _currentLetters = changeFirstLetters(_currentLetters);
+      _textController.text = _currentLetters.join('');
+      _currentColors = generateRandomColors(_currentColors);
     });
   }
 
@@ -266,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (_isEditing) {
                             _finishEditing();
                           } else {
-                            _changeFirstLetters();
+                            _buttonPressedStart();
                           }
                         },
                         style: ElevatedButton.styleFrom(
