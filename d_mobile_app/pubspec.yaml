@@ -16,6 +16,8 @@ dependencies:
   share_plus: ^7.2.2
   widgets_to_image: ^1.0.0
   path_provider: ^2.1.2
+  gal: ^2.3.0 
+  flutter_launcher_icons: ^0.14.3
 
 dev_dependencies:
   flutter_test:
@@ -24,3 +26,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+flutter_icons:
+  android: true
+  image_path: "assets/icon.png"

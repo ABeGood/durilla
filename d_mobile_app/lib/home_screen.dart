@@ -3,9 +3,11 @@ import './word_gen_utils.dart';
 
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:widgets_to_image/widgets_to_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:gal/gal.dart';
 
 // Custom widget for share options
 class _ShareOption extends StatelessWidget {
@@ -210,6 +212,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
 
+                // // Share text only
+                // _ShareOption(
+                //   icon: Icons.text_fields,
+                //   title: 'Share Text Only',
+                //   subtitle: 'Share as text message',
+                //   onTap: () async {
+                //     Navigator.pop(context);
+                //     await Share.share(
+                //       'Check out my Durilla creation: $currentText',
+                //     );
+                //   },
+                // ),
+
                 // Copy to clipboard
                 _ShareOption(
                   icon: Icons.copy,
@@ -229,14 +244,42 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
 
-                // Save to gallery
                 _ShareOption(
                   icon: Icons.download,
-                  title: 'Save Image',
-                  subtitle: 'Save to device',
+                  title: 'Save to Gallery',
+                  subtitle: 'Save image to photo gallery',
                   onTap: () async {
                     Navigator.pop(context);
-                    await Share.shareXFiles([XFile(imageFile.path)]);
+                    try {
+                      // Check permissions
+                      final hasAccess = await Gal.hasAccess();
+                      if (!hasAccess) {
+                        await Gal.requestAccess();
+                      }
+
+                      // Save image to gallery using gal package
+                      await Gal.putImageBytes(
+                        await imageFile.readAsBytes(),
+                        name:
+                            'durilla_${DateTime.now().millisecondsSinceEpoch}.png',
+                      );
+
+                      // Show success message
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Image saved to gallery!'),
+                          backgroundColor: Color(0xFF34C759),
+                        ),
+                      );
+                    } catch (e) {
+                      debugPrint('Error saving to gallery: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to save image to gallery'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   },
                 ),
               ],
@@ -250,159 +293,164 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: WidgetsToImage(
-          controller: _screenshotController,
-          child: Container(
-            color: Colors.black,
-            child: Stack(
-              children: [
-                // Menu button (top-left)
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  child: GestureDetector(
-                    onTap: () {
-                      debugPrint('Меню нажато');
-                    },
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Screenshot area - ONLY captures the letters
+                  WidgetsToImage(
+                    controller: _screenshotController,
                     child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.menu, color: Colors.black),
+                      color: Colors.black,
+                      padding: EdgeInsets.all(32),
+                      child:
+                          _isEditing
+                              ?
+                              // Editing mode - show TextField
+                              Container(
+                                constraints: BoxConstraints(maxWidth: 400),
+                                child: TextField(
+                                  controller: _textController,
+                                  focusNode: _focusNode,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 56,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    fontFamily: 'Arial Rounded MT Bold',
+                                  ),
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: Color(0xFF34C759),
+                                        width: 3,
+                                      ),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  onSubmitted: (value) => _finishEditing(),
+                                  onTapOutside: (event) => _finishEditing(),
+                                  textCapitalization:
+                                      TextCapitalization.characters,
+                                  maxLength: 20,
+                                ),
+                              )
+                              :
+                              // Display mode - show colored letters ONLY
+                              GestureDetector(
+                                onTap: _startEditing,
+                                child: FittedBox(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: List.generate(
+                                      _currentLetters.length,
+                                      (index) => _ColorLetter(
+                                        _currentLetters[index],
+                                        _currentColors[index],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                     ),
                   ),
-                ),
 
-                // Share button (top-right) - FULL SCREENSHOT FUNCTIONALITY
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: GestureDetector(
-                    onTap: _shareScreenshot,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF34C759),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.share, color: Colors.white),
-                    ),
-                  ),
-                ),
-
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Text display/editing area
-                      _isEditing
-                          ?
-                          // Editing mode - show TextField
-                          Container(
-                            constraints: BoxConstraints(maxWidth: 400),
-                            child: TextField(
-                              controller: _textController,
-                              focusNode: _focusNode,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 56,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                fontFamily: 'Arial Rounded MT Bold',
-                              ),
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    color: Color(0xFF34C759),
-                                    width: 3,
-                                  ),
-                                ),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                              onSubmitted: (value) => _finishEditing(),
-                              onTapOutside: (event) => _finishEditing(),
-                              textCapitalization: TextCapitalization.characters,
-                              maxLength: 20,
-                            ),
-                          )
-                          :
-                          // Display mode - show colored letters
-                          GestureDetector(
-                            onTap: _startEditing,
-                            child: FittedBox(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: List.generate(
-                                  _currentLetters.length,
-                                  (index) => _ColorLetter(
-                                    _currentLetters[index],
-                                    _currentColors[index],
-                                  ),
-                                ),
-                              ),
-                            ),
+                  // Start Game button - OUTSIDE screenshot area
+                  const SizedBox(height: 64),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 60,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          debugPrint('Start Game нажато');
+                          if (_isEditing) {
+                            _finishEditing();
+                          } else {
+                            _buttonPressedStart();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF34C759),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
                           ),
-                      const SizedBox(height: 64),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 60,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              debugPrint('Start Game нажато');
-                              if (_isEditing) {
-                                _finishEditing();
-                              } else {
-                                _buttonPressedStart();
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF34C759),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                            ),
-                            child: Text(
-                              _isEditing ? 'Done' : 'Start Game',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                fontFamily: 'Comic Sans',
-                              ),
-                            ),
+                        ),
+                        child: Text(
+                          _isEditing ? 'Done' : 'Start Game',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontFamily: 'Comic Sans',
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+
+            // Menu button (top-left) - OUTSIDE screenshot area
+            Positioned(
+              top: 16,
+              left: 16,
+              child: GestureDetector(
+                onTap: () {
+                  debugPrint('Меню нажато');
+                },
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.menu, color: Colors.black),
+                ),
+              ),
+            ),
+
+            // Share button (top-right) - OUTSIDE screenshot area
+            Positioned(
+              top: 16,
+              right: 16,
+              child: GestureDetector(
+                onTap: _shareScreenshot,
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF34C759),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.share, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
