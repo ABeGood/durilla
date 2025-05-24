@@ -138,6 +138,12 @@ class _HomeScreenState extends State<HomeScreen> {
       // Convert back to letters list
       _currentLetters = newText.split('');
 
+      // Shuffle colors randomly
+      _currentColors = List.generate(
+        _currentLetters.length,
+        (index) => _availableColors[_random.nextInt(_availableColors.length)],
+      );
+
       // Update text controller
       _textController.text = newText;
     });
