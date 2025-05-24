@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import './word_gen_utils.dart';
+import 'dart:math';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -9,96 +10,162 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Current letters to display (initially DURILLA)
-  List<String> _currentLetters = ['D', 'U', 'R', 'I', 'L', 'L', 'A'];
-
-  // Current colors for each letter position
-  List<Color> _currentColors = [
-    Color(0xFFFF9AD6), // D - Pink
-    Color(0xFF3A85FF), // U - Blue
-    Color(0xFF34C759), // R - Green
-    Color(0xFFFFCC00), // I - Yellow
-    Color(0xFFFF9AD6), // L - Pink
-    Color(0xFF5FDFFF), // L - Light Blue
-    Color(0xFFBF3EFF), // A - Purple
+  final List<String> _englishLetters = List.generate(
+    26,
+    (i) => String.fromCharCode(65 + i),
+  );
+  List<String> _currentLetters = [
+    'D',
+    'U',
+    'R',
+    'I',
+    'L',
+    'L',
+    'A',
+    ' ',
+    'P',
+    'U',
+    'P',
+    'K',
+    'I',
+    'N',
   ];
 
-  // Text editing variables
+  final List<Color> _availableColors = [
+    Color(0xFFFF9AD6),
+    Color(0xFF3A85FF),
+    Color(0xFF34C759),
+    Color(0xFFFFCC00),
+    Color(0xFF5FDFFF),
+    Color(0xFFBF3EFF),
+    Color(0xFFFF6B6B),
+    Color(0xFF4ECDC4),
+    Color(0xFFFFE66D),
+    Color(0xFF95E1D3),
+  ];
+
+  List<Color> _currentColors = [];
+
+  final Random _random = Random();
   bool _isEditing = false;
   late TextEditingController _textController;
   late FocusNode _focusNode;
+
+  Set<int> _slotPositions = {};
+  Set<int> _runningSlots = {};
+  Map<int, Timer> _timers = {};
 
   @override
   void initState() {
     super.initState();
     _textController = TextEditingController(text: _currentLetters.join(''));
     _focusNode = FocusNode();
+    _currentColors = List.generate(
+      _currentLetters.length,
+      (index) => _availableColors[_random.nextInt(_availableColors.length)],
+    );
   }
 
   @override
   void dispose() {
+    for (var timer in _timers.values) {
+      timer.cancel();
+    }
     _textController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  // Function to start editing
   void _startEditing() {
     setState(() {
       _isEditing = true;
       _textController.text = _currentLetters.join('');
     });
-    // Focus the text field
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
   }
 
-  // Function to finish editing
   void _finishEditing() {
     setState(() {
       _isEditing = false;
       String newText = _textController.text.toUpperCase();
 
       if (newText.isNotEmpty) {
-        // Convert text to letters list
         _currentLetters = newText.split('');
-
-        // Update text controller
+        _currentColors = List.generate(
+          _currentLetters.length,
+          (index) => _availableColors[_random.nextInt(_availableColors.length)],
+        );
         _textController.text = _currentLetters.join('');
       }
     });
   }
 
-  // Function to finish editing
-  void _buttonPressedStart() {
-    setState(() {
-      _isEditing = false;
+  void _changeFirstLettersInWords() {
+    String fullText = _currentLetters.join('');
+    List<String> words = fullText.split(' ');
+    List<int> positions = [];
 
-      // Update text controller
-      _currentLetters = changeFirstLetters(_currentLetters);
-      _textController.text = _currentLetters.join('');
-      _currentColors = generateRandomColors(_currentColors);
+    int currentIndex = 0;
+    for (var word in words) {
+      if (word.isNotEmpty) {
+        positions.add(currentIndex);
+      }
+      currentIndex += word.length + 1;
+    }
+
+    setState(() {
+      _slotPositions = positions.toSet();
+      _runningSlots = {..._slotPositions};
     });
+
+    for (int pos in _slotPositions) {
+      int count = 0;
+      const maxCount = 15;
+      const duration = Duration(milliseconds: 20);
+
+      _timers[pos]?.cancel();
+      _timers[pos] = Timer.periodic(duration, (timer) {
+        setState(() {
+          _currentLetters[pos] =
+              _englishLetters[_random.nextInt(_englishLetters.length)];
+          _currentColors[pos] =
+              _availableColors[_random.nextInt(_availableColors.length)];
+          _textController.text = _currentLetters.join('');
+        });
+
+        count++;
+        if (count >= maxCount) {
+          timer.cancel();
+          Future.delayed(const Duration(milliseconds: 60), () {
+            setState(() {
+              _currentLetters[pos] =
+                  _englishLetters[_random.nextInt(_englishLetters.length)];
+              _currentColors[pos] =
+                  _availableColors[_random.nextInt(_availableColors.length)];
+              _textController.text = _currentLetters.join('');
+              _runningSlots.remove(pos);
+            });
+          });
+        }
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(
           children: [
+            // Меню
             Positioned(
               top: 16,
               left: 16,
               child: GestureDetector(
-                onTap: () {
-                  // TODO: реализовать меню
-                  debugPrint('Меню нажато');
-                },
+                onTap: () => debugPrint('Меню нажато'),
                 child: Container(
                   width: 48,
                   height: 48,
@@ -110,107 +177,127 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+
+            // Центр
             Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Text display/editing area
-                  _isEditing
-                      ?
-                      // Editing mode - show TextField
-                      Container(
-                        constraints: BoxConstraints(maxWidth: 400),
-                        child: TextField(
-                          controller: _textController,
-                          focusNode: _focusNode,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 56,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            fontFamily: 'Arial Rounded MT Bold',
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 26),
+                child:
+                    _isEditing
+                        ? Container(
+                          constraints: const BoxConstraints(maxWidth: 400),
+                          child: TextField(
+                            controller: _textController,
+                            focusNode: _focusNode,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              fontFamily: 'Arial Rounded MT Bold',
+                            ),
+                            onSubmitted: (_) => _finishEditing(),
+                            onTapOutside: (_) => _finishEditing(),
+                            textCapitalization: TextCapitalization.characters,
+                            maxLength: 30,
                           ),
-                          onSubmitted: (value) => _finishEditing(),
-                          onTapOutside: (event) => _finishEditing(),
-                          textCapitalization: TextCapitalization.characters,
-                          maxLength: 20, // Reasonable limit
-                        ),
-                      )
-                      :
-                      // Display mode - show colored letters
-                      GestureDetector(
-                        onTap: _startEditing,
-                        child: FittedBox(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(
-                              _currentLetters.length,
-                              (index) => _ColorLetter(
-                                _currentLetters[index],
-                                _currentColors[index],
-                              ),
+                        )
+                        : GestureDetector(
+                          onTap: _startEditing,
+                          child: FittedBox(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(_currentLetters.length, (
+                                index,
+                              ) {
+                                final isAnimating = _runningSlots.contains(
+                                  index,
+                                );
+                                final isSlot = _slotPositions.contains(index);
+
+                                if (!isSlot || isAnimating) {
+                                  // во время анимации — просто текст без эффекта
+                                  return Text(
+                                    _currentLetters[index],
+                                    style: TextStyle(
+                                      fontSize: 56,
+                                      fontWeight: FontWeight.w900,
+                                      color: _currentColors[index],
+                                      fontFamily: 'Arial Rounded MT Bold',
+                                    ),
+                                  );
+                                } else {
+                                  // после анимации — с fade эффектом
+                                  return AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    transitionBuilder:
+                                        (child, animation) => FadeTransition(
+                                          opacity: animation,
+                                          child: child,
+                                        ),
+                                    child: Text(
+                                      _currentLetters[index],
+                                      key: ValueKey(
+                                        _currentLetters[index] +
+                                            index.toString(),
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 56,
+                                        fontWeight: FontWeight.w900,
+                                        color: _currentColors[index],
+                                        fontFamily: 'Arial Rounded MT Bold',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }),
                             ),
                           ),
                         ),
-                      ),
-                  const SizedBox(height: 64),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 60,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          debugPrint('Start Game нажато');
-                          if (_isEditing) {
-                            _finishEditing();
-                          } else {
-                            _buttonPressedStart();
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF34C759),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                        child: Text(
-                          _isEditing ? 'Done' : 'Start Game',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontFamily: 'Comic Sans',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
 
-class _ColorLetter extends StatelessWidget {
-  final String char;
-  final Color color;
-
-  const _ColorLetter(this.char, this.color);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      char,
-      style: TextStyle(
-        fontSize: 56,
-        fontWeight: FontWeight.w900,
-        color: color,
-        fontFamily: 'Arial Rounded MT Bold',
+      // Кнопка
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            bottom: 60,
+            top: 16,
+          ),
+          child: SizedBox(
+            height: 76,
+            child: ElevatedButton(
+              onPressed: () {
+                debugPrint('Start Game нажато');
+                if (_isEditing) {
+                  _finishEditing();
+                } else {
+                  _changeFirstLettersInWords();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 222, 196, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              child: Text(
+                _isEditing ? 'Done' : 'Generate',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontFamily: 'Comic Sans',
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
