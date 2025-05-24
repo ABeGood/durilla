@@ -1,0 +1,70 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flutter Debug (Development)",
+            "request": "launch",
+            "type": "dart",
+            "program": "d_mobile_app/lib/main.dart",
+            "args": [
+                "--debug",
+                "--flavor=development",
+                "--dart-define=ENVIRONMENT=development"
+            ],
+            "flutterMode": "debug",
+            "env": {
+                "FLUTTER_WEB_USE_SKIA": "true"
+            }
+        },
+        {
+            "name": "Flutter Debug (Staging)",
+            "request": "launch",
+            "type": "dart",
+            "program": "d_mobile_app/lib/main.dart",
+            "args": [
+                "--debug",
+                "--flavor=staging",
+                "--dart-define=ENVIRONMENT=staging",
+                "--dart-define=API_URL=https://staging-api.yourapp.com"
+            ],
+            "flutterMode": "debug"
+        },
+        {
+            "name": "Flutter Debug (Production)",
+            "request": "launch",
+            "type": "dart",
+            "program": "d_mobile_app/lib/main.dart",
+            "args": [
+                "--debug",
+                "--flavor=production",
+                "--dart-define=ENVIRONMENT=production",
+                "--dart-define=API_URL=https://api.yourapp.com"
+            ],
+            "flutterMode": "debug"
+        },
+        {
+            "name": "Flutter Debug (Verbose Logging)",
+            "request": "launch",
+            "type": "dart",
+            "program": "d_mobile_app/lib/main.dart",
+            "args": [
+                "--debug",
+                "--verbose",
+                "--dart-define=DEBUG_LOGGING=true"
+            ],
+            "flutterMode": "debug",
+            "enableAsserts": true
+        },
+        {
+            "name": "Flutter Debug (No Sound Null Safety)",
+            "request": "launch",
+            "type": "dart",
+            "program": "d_mobile_app/lib/main.dart",
+            "args": [
+                "--debug",
+                "--no-sound-null-safety"
+            ],
+            "flutterMode": "debug"
+        }
+    ]
+}
